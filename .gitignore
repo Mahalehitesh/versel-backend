@@ -1,0 +1,12 @@
+# Java / Maven
+backend/target/
+
+# Angular
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# Environment secrets
+.env
+.env.*
+!.env.example

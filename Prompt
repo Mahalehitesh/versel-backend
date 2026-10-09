@@ -1,0 +1,71 @@
+You are a senior full-stack engineer. Build a production-quality School Classroom Management web application from scratch. Work step by step: first propose the plan and schema, then generate complete, runnable code for every file, with no placeholders or "TODO" comments.
+
+## 1. Goal
+A school web app where admins create classrooms and assign teachers and students. Teachers sign in and see a dashboard of their classrooms across terms, open a classroom to see its students, and open a student to see full details.
+
+## 2. Tech Stack (fixed, do not change)
+- Backend: Spring Boot 4.1.0, Java 26.0.2, Maven
+  - Spring Web, Spring Data JPA (Hibernate), Spring Security (JWT access + refresh tokens, BCrypt), Spring Validation, Flyway for migrations, Lombok, springdoc-openapi (Swagger UI)
+- Frontend: Angular 22.1.2
+  - Standalone components, signals, lazy-loaded routes, functional route guards, HTTP interceptors, reactive forms
+  - UI: Angular Material (or Tailwind CSS), responsive and accessible
+- Database: PostgreSQL 18.6
+- Dev setup: Docker Compose (postgres, backend, frontend), .env.example
+- Testing: JUnit 5 + Mockito + Testcontainers (backend), Jasmine/Karma or Jest (frontend)
+
+## 3. User Roles
+- ADMIN: manages terms, classrooms, teachers, students, and assignments
+- TEACHER: read-only access to their own classrooms and the students in them
+- Teachers must NOT access classrooms or students they are not assigned to. Enforce this on the backend (method security / service-level checks), not just in the UI.
+
+## 4. Core Requirements
+1. Terms: Admin creates terms (name, startDate, endDate). The system computes each term's status as PAST, CURRENT, or FUTURE from today's date.
+2. Classrooms: Admin can create, edit, and delete classrooms (name, grade/section, subject, room number, term).
+3. Teacher assignment: Each classroom has one or more teachers. One teacher can be assigned to many classrooms (many-to-many).
+4. Student assignment: Each classroom has one or more students (many-to-many). A student can be in multiple classrooms across terms.
+5. Teacher login: After sign-in, the teacher lands on the Teacher Dashboard.
+6. Teacher Dashboard:
+   - Shows all of the teacher's classrooms grouped into: Current Term, Previous Terms, Future Terms
+   - Future Terms section appears only if the teacher has classrooms assigned in future terms
+   - Each classroom card shows name, subject, term, and student count
+7. Classroom page: Clicking a classroom shows a searchable, sortable, paginated list of its students (name, roll number, grade).
+8. Student detail page: Clicking a student shows full details (name, roll number, DOB, gender, contact info, guardian info, address, enrollment date, classrooms they are in, notes).
+
+## 5. Database Design
+Normalized PostgreSQL schema with primary keys, foreign keys, unique constraints, indexes, and created_at/updated_at timestamps:
+users, teachers, students, terms, classrooms, classroom_teachers, classroom_students.
+Provide JPA entities and Flyway migration scripts (V1__init.sql, etc.).
+
+## 6. API Design
+RESTful endpoints with DTOs (Java records), Bean Validation, global @RestControllerAdvice exception handling, and proper HTTP status codes:
+- POST /api/auth/login, POST /api/auth/refresh, GET /api/auth/me
+- Admin CRUD: /api/terms, /api/classrooms, /api/teachers, /api/students
+- POST/DELETE /api/classrooms/{id}/teachers and /api/classrooms/{id}/students
+- GET /api/teacher/dashboard (classrooms grouped into current, previous, future)
+- GET /api/teacher/classrooms/{id}/students
+- GET /api/teacher/students/{id}
+Include pagination (Pageable), sorting, and role-based authorization (@PreAuthorize).
+
+## 7. Frontend Pages
+- Login page
+- Teacher: Dashboard, Classroom Students page, Student Detail page
+- Admin: manage terms, classrooms, teachers, students, and assignments
+- Auth service, JWT interceptor with token refresh, role guards, loading/error/empty states, toast notifications
+- Clean, responsive UI (mobile + desktop)
+
+## 8. Non-Functional Requirements
+- Security: input validation, CORS config, login rate limiting, no secrets in code, externalized config (application.yml + env vars)
+- Clean, simple, well-commented code with clear package structure (controller, service, repository, entity, dto, config, security)
+- Seed data (CommandLineRunner or Flyway): 1 admin, 3 teachers, 30 students, 6 classrooms across past, current, and future terms
+- Unit/integration tests for term status logic and teacher access control
+
+## 9. Deliverables (in this order)
+1. Project folder structure (backend + frontend)
+2. Database schema (ER description + entities + Flyway migrations)
+3. Complete backend code
+4. Complete frontend code
+5. Docker Compose + .env.example
+6. Seed data
+7. README with setup, run, and test instructions, plus default login credentials
+
+Start with steps 1 and 2, then continue until all deliverables are complete.
