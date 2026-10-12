@@ -21,8 +21,17 @@ public class TeacherDashboardService {
     private final ClassroomService classroomService;
 
     @Transactional(readOnly = true)
-    public TeacherDashboardResponse getTeacherDashboard(String username) {
-        List<Classroom> teacherClassrooms = classroomRepository.findAllByTeacherUsername(username);
+    public TeacherDashboardResponse getTeacherDashboard(String username, boolean isAdmin, Long teacherId) {
+        List<Classroom> teacherClassrooms;
+        if (isAdmin) {
+            if (teacherId != null) {
+                teacherClassrooms = classroomRepository.findAllByTeacherId(teacherId);
+            } else {
+                teacherClassrooms = classroomRepository.findAll();
+            }
+        } else {
+            teacherClassrooms = classroomRepository.findAllByTeacherUsername(username);
+        }
 
         List<ClassroomResponse> currentTerm = new ArrayList<>();
         List<ClassroomResponse> previousTerm = new ArrayList<>();

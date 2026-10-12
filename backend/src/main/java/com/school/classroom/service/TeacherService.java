@@ -2,6 +2,7 @@ package com.school.classroom.service;
 
 import com.school.classroom.dto.TeacherRequest;
 import com.school.classroom.dto.TeacherResponse;
+import com.school.classroom.entity.Classroom;
 import com.school.classroom.entity.Role;
 import com.school.classroom.entity.Teacher;
 import com.school.classroom.entity.User;
@@ -23,6 +24,7 @@ public class TeacherService {
     private final TeacherRepository teacherRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final DepartureHistoryService departureHistoryService;
 
     @Transactional(readOnly = true)
     public List<TeacherResponse> getAllTeachers() {
@@ -103,9 +105,26 @@ public class TeacherService {
 
     @Transactional
     public void deleteTeacher(Long id) {
+        deleteTeacher(id, null);
+    }
+
+    @Transactional
+    public void deleteTeacher(Long id, String reason) {
         Teacher teacher = teacherRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Teacher not found with ID: " + id));
+
+        departureHistoryService.recordTeacherDeparture(teacher, reason);
+
+        if (teacher.getClassrooms() != null) {
+            for (Classroom classroom : teacher.getClassrooms()) {
+                classroom.getTeachers().remove(teacher);
+            }
+        }
+        User user = teacher.getUser();
         teacherRepository.delete(teacher);
+        if (user != null) {
+            userRepository.delete(user);
+        }
     }
 
     public TeacherResponse mapToTeacherResponse(Teacher teacher) {

@@ -1,8 +1,9 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { CommonModule, Location } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../../services/api.service';
+import { AuthService } from '../../../services/auth.service';
 import { Classroom } from '../../../models/classroom.model';
 import { Student, PageResponse } from '../../../models/student.model';
 
@@ -14,13 +15,19 @@ import { Student, PageResponse } from '../../../models/student.model';
     <div style="max-width: 1280px; margin: 0 auto; padding: 0 24px 40px;">
       <!-- Navigation Breadcrumb -->
       <div style="margin-bottom: 20px;">
-        <a routerLink="/teacher/dashboard" style="color: var(--text-muted); text-decoration: none; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 6px;">
-          <span class="material-icons-outlined" style="font-size: 16px;">arrow_back</span> Back to Dashboard
-        </a>
+        <button type="button" (click)="goBack()" style="background:none; border:none; color: var(--text-muted); cursor:pointer; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 6px; padding: 0; font-weight: 600;">
+          <span class="material-icons-outlined" style="font-size: 16px;">arrow_back</span> Back
+        </button>
+      </div>
+
+      <!-- Classroom Banner Loading State -->
+      <div *ngIf="isClassroomLoading" class="glass-panel" style="padding: 28px; margin-bottom: 32px; background: #ffffff; display: flex; align-items: center; gap: 12px;">
+        <div class="spinner"></div>
+        <span style="color: var(--text-muted); font-weight: 600;">Loading classroom details...</span>
       </div>
 
       <!-- Classroom Banner -->
-      <div *ngIf="classroom" class="glass-panel" style="padding: 28px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; background: #ffffff;">
+      <div *ngIf="!isClassroomLoading && classroom" class="glass-panel" style="padding: 28px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; background: #ffffff;">
         <div>
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
             <span class="badge" [ngClass]="getBadgeClass(classroom.term.status)">{{ classroom.term.name }}</span>
@@ -92,9 +99,9 @@ import { Student, PageResponse } from '../../../models/student.model';
                 <div style="font-size: 0.8rem; color: var(--text-muted);">{{ s.guardianPhone }}</div>
               </td>
               <td style="text-align: right;">
-                <span class="btn btn-secondary btn-sm">
+                <a [routerLink]="['/teacher/students', s.id]" (click)="$event.stopPropagation()" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
                   View Profile <span class="material-icons-outlined" style="font-size: 14px;">chevron_right</span>
-                </span>
+                </a>
               </td>
             </tr>
           </tbody>
@@ -120,12 +127,16 @@ import { Student, PageResponse } from '../../../models/student.model';
 })
 export class ClassroomStudentsComponent implements OnInit {
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private location = inject(Location);
   private apiService = inject(ApiService);
+  authService = inject(AuthService);
 
   classroomId!: number;
   classroom: Classroom | null = null;
   pageResponse: PageResponse<Student> | null = null;
   isLoading = true;
+  isClassroomLoading = true;
 
   searchQuery = '';
   sortBy = 'firstName';
@@ -139,19 +150,40 @@ export class ClassroomStudentsComponent implements OnInit {
   }
 
   loadClassroom(): void {
-    this.apiService.getClassroomById(this.classroomId).subscribe({
-      next: (res: Classroom) => this.classroom = res
+    this.isClassroomLoading = true;
+    this.apiService.getTeacherClassroom(this.classroomId).subscribe({
+      next: (res: Classroom) => {
+        this.classroom = res;
+        this.isClassroomLoading = false;
+      },
+      error: () => {
+        if (this.authService.isAdmin()) {
+          this.apiService.getClassroomById(this.classroomId).subscribe({
+            next: (res: Classroom) => {
+              this.classroom = res;
+              this.isClassroomLoading = false;
+            },
+            error: () => {
+              this.isClassroomLoading = false;
+            }
+          });
+        } else {
+          this.isClassroomLoading = false;
+        }
+      }
     });
   }
 
   loadStudents(): void {
     this.isLoading = true;
-    this.apiService.getTeacherClassroomStudents(this.classroomId, this.searchQuery, this.currentPage, this.pageSize).subscribe({
+    this.apiService.getTeacherClassroomStudents(this.classroomId, this.searchQuery, this.currentPage, this.pageSize, this.sortBy).subscribe({
       next: (res: PageResponse<Student>) => {
         this.pageResponse = res;
         this.isLoading = false;
       },
-      error: () => this.isLoading = false
+      error: () => {
+        this.isLoading = false;
+      }
     });
   }
 
@@ -165,7 +197,11 @@ export class ClassroomStudentsComponent implements OnInit {
     this.loadStudents();
   }
 
-  getBadgeClass(status: string): string {
+  goBack(): void {
+    this.location.back();
+  }
+
+  getBadgeClass(status?: string): string {
     if (status === 'CURRENT') return 'badge-current';
     if (status === 'FUTURE') return 'badge-future';
     return 'badge-past';

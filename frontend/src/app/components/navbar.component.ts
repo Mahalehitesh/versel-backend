@@ -51,6 +51,10 @@ import { AuthService } from '../services/auth.service';
               <span class="material-icons-outlined">visibility</span>
               Teacher View
             </a>
+            <a routerLink="/admin/history" routerLinkActive="active-link" class="nav-item">
+              <span class="material-icons-outlined">history_edu</span>
+              Past History
+            </a>
           </ng-container>
 
           <!-- User Profile & Logout -->

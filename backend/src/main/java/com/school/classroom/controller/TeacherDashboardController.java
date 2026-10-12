@@ -1,5 +1,6 @@
 package com.school.classroom.controller;
 
+import com.school.classroom.dto.ClassroomResponse;
 import com.school.classroom.dto.StudentDetailResponse;
 import com.school.classroom.dto.StudentResponse;
 import com.school.classroom.dto.TeacherDashboardResponse;
@@ -30,8 +31,19 @@ public class TeacherDashboardController {
     @GetMapping("/dashboard")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     @Operation(summary = "Get teacher dashboard grouped by current, previous, and future terms")
-    public ResponseEntity<TeacherDashboardResponse> getTeacherDashboard(Authentication authentication) {
-        return ResponseEntity.ok(teacherDashboardService.getTeacherDashboard(authentication.getName()));
+    public ResponseEntity<TeacherDashboardResponse> getTeacherDashboard(
+            Authentication authentication,
+            @RequestParam(required = false) Long teacherId) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        return ResponseEntity.ok(teacherDashboardService.getTeacherDashboard(authentication.getName(), isAdmin, teacherId));
+    }
+
+    @GetMapping("/classrooms/{id}")
+    @PreAuthorize("@teacherSecurityService.isAssignedToClassroom(#id, authentication)")
+    @Operation(summary = "Get classroom details by ID for assigned teacher or admin")
+    public ResponseEntity<ClassroomResponse> getClassroomDetails(@PathVariable Long id) {
+        return ResponseEntity.ok(classroomService.getClassroomById(id));
     }
 
     @GetMapping("/classrooms/{id}/students")

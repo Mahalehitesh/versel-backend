@@ -67,6 +67,7 @@ import { Student } from '../../../models/student.model';
                 </button>
               </td>
               <td style="text-align: right;">
+                <a [routerLink]="['/teacher/classrooms', c.id, 'students']" class="btn btn-secondary btn-sm" style="margin-right: 6px; text-decoration: none;">View</a>
                 <button (click)="openClassroomModal(c)" class="btn btn-secondary btn-sm" style="margin-right: 6px;">Edit</button>
                 <button (click)="deleteClassroom(c.id)" class="btn btn-danger btn-sm">Delete</button>
               </td>

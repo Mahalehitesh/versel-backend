@@ -48,9 +48,11 @@ public class TeacherController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete teacher")
-    public ResponseEntity<Void> deleteTeacher(@PathVariable Long id) {
-        teacherService.deleteTeacher(id);
+    @Operation(summary = "Delete teacher and record in past history with reason")
+    public ResponseEntity<Void> deleteTeacher(
+            @PathVariable Long id,
+            @RequestParam(required = false) String reason) {
+        teacherService.deleteTeacher(id, reason);
         return ResponseEntity.noContent().build();
     }
 }

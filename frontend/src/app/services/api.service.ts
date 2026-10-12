@@ -5,6 +5,7 @@ import { Term, TermRequest } from '../models/term.model';
 import { Teacher, TeacherRequest } from '../models/teacher.model';
 import { Student, StudentDetail, StudentRequest, PageResponse } from '../models/student.model';
 import { Classroom, ClassroomRequest, TeacherDashboardResponse } from '../models/classroom.model';
+import { DepartureHistory, HistoryCounts } from '../models/history.model';
 
 @Injectable({
   providedIn: 'root'
@@ -44,8 +45,12 @@ export class ApiService {
     return this.http.put<Teacher>(`${this.baseUrl}/teachers/${id}`, teacher);
   }
 
-  deleteTeacher(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/teachers/${id}`);
+  deleteTeacher(id: number, reason: string = ''): Observable<void> {
+    let params = new HttpParams();
+    if (reason) {
+      params = params.set('reason', reason);
+    }
+    return this.http.delete<void>(`${this.baseUrl}/teachers/${id}`, { params });
   }
 
   // --- Students ---
@@ -70,8 +75,12 @@ export class ApiService {
     return this.http.put<Student>(`${this.baseUrl}/students/${id}`, student);
   }
 
-  deleteStudent(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/students/${id}`);
+  deleteStudent(id: number, reason: string = ''): Observable<void> {
+    let params = new HttpParams();
+    if (reason) {
+      params = params.set('reason', reason);
+    }
+    return this.http.delete<void>(`${this.baseUrl}/students/${id}`, { params });
   }
 
   // --- Classrooms ---
@@ -112,12 +121,23 @@ export class ApiService {
   }
 
   // --- Teacher Dashboard & Scoped Endpoints ---
-  getTeacherDashboard(): Observable<TeacherDashboardResponse> {
-    return this.http.get<TeacherDashboardResponse>(`${this.baseUrl}/teacher/dashboard`);
+  getTeacherDashboard(teacherId?: number | null): Observable<TeacherDashboardResponse> {
+    let params = new HttpParams();
+    if (teacherId) {
+      params = params.set('teacherId', teacherId.toString());
+    }
+    return this.http.get<TeacherDashboardResponse>(`${this.baseUrl}/teacher/dashboard`, { params });
   }
 
-  getTeacherClassroomStudents(classroomId: number, query: string = '', page: number = 0, size: number = 20): Observable<PageResponse<Student>> {
-    let params = new HttpParams().set('page', page).set('size', size);
+  getTeacherClassroom(id: number): Observable<Classroom> {
+    return this.http.get<Classroom>(`${this.baseUrl}/teacher/classrooms/${id}`);
+  }
+
+  getTeacherClassroomStudents(classroomId: number, query: string = '', page: number = 0, size: number = 20, sort: string = 'firstName'): Observable<PageResponse<Student>> {
+    let params = new HttpParams()
+      .set('page', page)
+      .set('size', size)
+      .set('sort', `${sort},asc`);
     if (query) {
       params = params.set('query', query);
     }
@@ -126,5 +146,25 @@ export class ApiService {
 
   getTeacherStudentDetail(studentId: number): Observable<StudentDetail> {
     return this.http.get<StudentDetail>(`${this.baseUrl}/teacher/students/${studentId}`);
+  }
+
+  // --- Past History & Departure Archive (Admin Only) ---
+  getDepartureHistory(type: 'STUDENT' | 'TEACHER', query: string = '', page: number = 0, size: number = 15): Observable<PageResponse<DepartureHistory>> {
+    let params = new HttpParams()
+      .set('type', type)
+      .set('page', page)
+      .set('size', size);
+    if (query) {
+      params = params.set('query', query);
+    }
+    return this.http.get<PageResponse<DepartureHistory>>(`${this.baseUrl}/admin/history`, { params });
+  }
+
+  getDepartureHistoryDetail(id: number): Observable<DepartureHistory> {
+    return this.http.get<DepartureHistory>(`${this.baseUrl}/admin/history/${id}`);
+  }
+
+  getDepartureHistoryCounts(): Observable<HistoryCounts> {
+    return this.http.get<HistoryCounts>(`${this.baseUrl}/admin/history/counts`);
   }
 }

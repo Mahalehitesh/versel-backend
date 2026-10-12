@@ -1,24 +1,56 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../../services/api.service';
+import { AuthService } from '../../../services/auth.service';
 import { TeacherDashboardResponse, Classroom } from '../../../models/classroom.model';
+import { Teacher } from '../../../models/teacher.model';
 
 @Component({
   selector: 'app-teacher-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule],
   template: `
     <div style="max-width: 1280px; margin: 0 auto; padding: 0 24px 40px;">
       <!-- Page Header -->
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
         <div>
-          <h2 style="font-size: 1.75rem; font-weight: 800; letter-spacing: -0.5px; color: #09090b;">Teacher Dashboard</h2>
-          <p style="color: var(--text-muted); font-size: 0.9rem;">Overview of your assigned classrooms organized by academic terms</p>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h2 style="font-size: 1.75rem; font-weight: 800; letter-spacing: -0.5px; color: #09090b;">
+              {{ authService.isAdmin() ? 'Teacher View (Administrator Perspective)' : 'Teacher Dashboard' }}
+            </h2>
+            <span *ngIf="authService.isAdmin()" class="badge badge-current" style="font-size: 0.7rem;">Admin Mode</span>
+          </div>
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
+            {{ authService.isAdmin()
+                ? 'Previewing classrooms organized by academic terms. Filter by specific teacher or inspect all school classrooms.'
+                : 'Overview of your assigned classrooms organized by academic terms' }}
+          </p>
         </div>
         <button (click)="loadDashboard()" class="btn btn-secondary btn-sm">
           <span class="material-icons-outlined">refresh</span> Refresh
         </button>
+      </div>
+
+      <!-- Admin Teacher Filter Bar -->
+      <div *ngIf="authService.isAdmin()" class="glass-panel" style="padding: 16px 20px; margin-bottom: 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; background: #ffffff;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span class="material-icons-outlined" style="color: #09090b;">filter_list</span>
+          <div>
+            <div style="font-weight: 700; font-size: 0.9rem; color: #09090b;">Filter By Assigned Teacher</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Select a teacher to inspect their assigned classrooms, or view all classrooms</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <select [(ngModel)]="selectedTeacherId" (change)="loadDashboard()" class="form-select" style="min-width: 240px; padding: 8px 14px;">
+            <option [ngValue]="null">-- All School Classrooms --</option>
+            <option *ngFor="let t of teachers" [ngValue]="t.id">{{ t.fullName }} ({{ t.department }})</option>
+          </select>
+          <button *ngIf="selectedTeacherId !== null" (click)="selectedTeacherId = null; loadDashboard()" class="btn btn-secondary btn-sm">
+            Reset
+          </button>
+        </div>
       </div>
 
       <!-- Loading State -->
@@ -34,34 +66,37 @@ import { TeacherDashboardResponse, Classroom } from '../../../models/classroom.m
             <h3 style="font-size: 1.25rem; font-weight: 700; color: #09090b;">Active Classrooms</h3>
           </div>
 
-          <div *ngIf="dashboard.currentTermClassrooms.length === 0" class="glass-panel" style="padding: 32px; text-align: center; color: var(--text-muted);">
-            No active classrooms assigned for the current term.
+          <div *ngIf="dashboard.currentTermClassrooms.length === 0" class="glass-panel" style="padding: 32px; text-align: center; color: var(--text-muted); background: #ffffff;">
+            No active classrooms found for the current term.
           </div>
 
           <div class="grid-layout">
-            <div *ngFor="let c of dashboard.currentTermClassrooms" [routerLink]="['/teacher/classrooms', c.id, 'students']" class="glass-card classroom-card">
+            <div *ngFor="let c of dashboard.currentTermClassrooms" (click)="viewClassroom(c.id)" class="glass-card classroom-card">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                 <span class="badge badge-current">{{ c.term.name }}</span>
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">{{ c.roomNumber }}</span>
               </div>
               <h4 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; color: #09090b;">{{ c.name }}</h4>
-              <div style="color: #71717a; font-size: 0.875rem; font-weight: 600; margin-bottom: 16px;">
+              <div style="color: #71717a; font-size: 0.875rem; font-weight: 600; margin-bottom: 10px;">
                 {{ c.subject }} • {{ c.gradeSection }}
+              </div>
+              <div *ngIf="authService.isAdmin() && c.teachers && c.teachers.length > 0" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                <span style="font-weight: 600; color: #09090b;">Teacher:</span> {{ getTeacherNames(c) }}
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--surface-border); font-size: 0.85rem; color: var(--text-muted);">
                 <span style="display: flex; align-items: center; gap: 6px;">
                   <span class="material-icons-outlined" style="font-size: 18px;">groups</span>
                   {{ c.studentCount }} Students
                 </span>
-                <span style="color: #09090b; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                <a [routerLink]="['/teacher/classrooms', c.id, 'students']" (click)="viewClassroom(c.id, $event)" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none; font-weight: 700;">
                   View Class <span class="material-icons-outlined" style="font-size: 16px;">arrow_forward</span>
-                </span>
+                </a>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- 2. Future Terms Section (Appears ONLY if classrooms exist) -->
+        <!-- 2. Future Terms Section -->
         <section *ngIf="dashboard.futureTermClassrooms && dashboard.futureTermClassrooms.length > 0" style="margin-bottom: 40px;">
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
             <span class="badge badge-future">Upcoming</span>
@@ -69,23 +104,26 @@ import { TeacherDashboardResponse, Classroom } from '../../../models/classroom.m
           </div>
 
           <div class="grid-layout">
-            <div *ngFor="let c of dashboard.futureTermClassrooms" [routerLink]="['/teacher/classrooms', c.id, 'students']" class="glass-card classroom-card">
+            <div *ngFor="let c of dashboard.futureTermClassrooms" (click)="viewClassroom(c.id)" class="glass-card classroom-card">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                 <span class="badge badge-future">{{ c.term.name }}</span>
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">{{ c.roomNumber }}</span>
               </div>
               <h4 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; color: #09090b;">{{ c.name }}</h4>
-              <div style="color: #71717a; font-size: 0.875rem; font-weight: 600; margin-bottom: 16px;">
+              <div style="color: #71717a; font-size: 0.875rem; font-weight: 600; margin-bottom: 10px;">
                 {{ c.subject }} • {{ c.gradeSection }}
+              </div>
+              <div *ngIf="authService.isAdmin() && c.teachers && c.teachers.length > 0" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                <span style="font-weight: 600; color: #09090b;">Teacher:</span> {{ getTeacherNames(c) }}
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--surface-border); font-size: 0.85rem; color: var(--text-muted);">
                 <span style="display: flex; align-items: center; gap: 6px;">
                   <span class="material-icons-outlined" style="font-size: 18px;">groups</span>
                   {{ c.studentCount }} Students
                 </span>
-                <span style="color: #09090b; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                <a [routerLink]="['/teacher/classrooms', c.id, 'students']" (click)="viewClassroom(c.id, $event)" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none; font-weight: 700;">
                   View Class <span class="material-icons-outlined" style="font-size: 16px;">arrow_forward</span>
-                </span>
+                </a>
               </div>
             </div>
           </div>
@@ -98,28 +136,31 @@ import { TeacherDashboardResponse, Classroom } from '../../../models/classroom.m
             <h3 style="font-size: 1.25rem; font-weight: 700; color: #09090b;">Previous Terms</h3>
           </div>
 
-          <div *ngIf="dashboard.previousTermClassrooms.length === 0" class="glass-panel" style="padding: 24px; text-align: center; color: var(--text-muted);">
+          <div *ngIf="dashboard.previousTermClassrooms.length === 0" class="glass-panel" style="padding: 24px; text-align: center; color: var(--text-muted); background: #ffffff;">
             No past classrooms in history.
           </div>
 
           <div class="grid-layout">
-            <div *ngFor="let c of dashboard.previousTermClassrooms" [routerLink]="['/teacher/classrooms', c.id, 'students']" class="glass-card classroom-card">
+            <div *ngFor="let c of dashboard.previousTermClassrooms" (click)="viewClassroom(c.id)" class="glass-card classroom-card">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                 <span class="badge badge-past">{{ c.term.name }}</span>
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">{{ c.roomNumber }}</span>
               </div>
               <h4 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; color: #09090b;">{{ c.name }}</h4>
-              <div style="color: var(--text-muted); font-size: 0.875rem; font-weight: 600; margin-bottom: 16px;">
+              <div style="color: var(--text-muted); font-size: 0.875rem; font-weight: 600; margin-bottom: 10px;">
                 {{ c.subject }} • {{ c.gradeSection }}
+              </div>
+              <div *ngIf="authService.isAdmin() && c.teachers && c.teachers.length > 0" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                <span style="font-weight: 600; color: #09090b;">Teacher:</span> {{ getTeacherNames(c) }}
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--surface-border); font-size: 0.85rem; color: var(--text-muted);">
                 <span style="display: flex; align-items: center; gap: 6px;">
                   <span class="material-icons-outlined" style="font-size: 18px;">groups</span>
                   {{ c.studentCount }} Students
                 </span>
-                <span style="color: #09090b; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                <a [routerLink]="['/teacher/classrooms', c.id, 'students']" (click)="viewClassroom(c.id, $event)" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none; font-weight: 700;">
                   View Class <span class="material-icons-outlined" style="font-size: 16px;">arrow_forward</span>
-                </span>
+                </a>
               </div>
             </div>
           </div>
@@ -136,21 +177,37 @@ import { TeacherDashboardResponse, Classroom } from '../../../models/classroom.m
     .classroom-card {
       padding: 20px;
       cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .classroom-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      border-color: #09090b;
     }
   `]
 })
 export class TeacherDashboardComponent implements OnInit {
   private apiService = inject(ApiService);
+  private router = inject(Router);
+  authService = inject(AuthService);
+
   dashboard: TeacherDashboardResponse | null = null;
+  teachers: Teacher[] = [];
+  selectedTeacherId: number | null = null;
   isLoading = true;
 
   ngOnInit(): void {
+    if (this.authService.isAdmin()) {
+      this.apiService.getTeachers().subscribe((res: Teacher[]) => {
+        this.teachers = res;
+      });
+    }
     this.loadDashboard();
   }
 
   loadDashboard(): void {
     this.isLoading = true;
-    this.apiService.getTeacherDashboard().subscribe({
+    this.apiService.getTeacherDashboard(this.selectedTeacherId).subscribe({
       next: (res: TeacherDashboardResponse) => {
         this.dashboard = res;
         this.isLoading = false;
@@ -159,5 +216,20 @@ export class TeacherDashboardComponent implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  viewClassroom(id: number, event?: Event): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.router.navigate(['/teacher/classrooms', id, 'students']);
+  }
+
+  getTeacherNames(classroom: Classroom): string {
+    if (!classroom.teachers || classroom.teachers.length === 0) {
+      return 'None';
+    }
+    return classroom.teachers.map(t => t.fullName).join(', ');
   }
 }

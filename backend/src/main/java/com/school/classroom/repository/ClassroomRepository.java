@@ -14,6 +14,9 @@ public interface ClassroomRepository extends JpaRepository<Classroom, Long> {
     @Query("SELECT c FROM Classroom c JOIN c.teachers t WHERE t.user.username = :username")
     List<Classroom> findAllByTeacherUsername(@Param("username") String username);
 
+    @Query("SELECT c FROM Classroom c JOIN c.teachers t WHERE t.id = :teacherId")
+    List<Classroom> findAllByTeacherId(@Param("teacherId") Long teacherId);
+
     @Query("SELECT COUNT(c) > 0 FROM Classroom c JOIN c.teachers t WHERE c.id = :classroomId AND t.user.username = :username")
     boolean isTeacherAssignedToClassroom(@Param("classroomId") Long classroomId, @Param("username") String username);
 

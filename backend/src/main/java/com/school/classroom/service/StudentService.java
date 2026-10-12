@@ -4,6 +4,7 @@ import com.school.classroom.dto.ClassroomSummaryDto;
 import com.school.classroom.dto.StudentDetailResponse;
 import com.school.classroom.dto.StudentRequest;
 import com.school.classroom.dto.StudentResponse;
+import com.school.classroom.entity.Classroom;
 import com.school.classroom.entity.Student;
 import com.school.classroom.exception.BadRequestException;
 import com.school.classroom.exception.ResourceNotFoundException;
@@ -22,6 +23,7 @@ import java.util.List;
 public class StudentService {
 
     private final StudentRepository studentRepository;
+    private final DepartureHistoryService departureHistoryService;
 
     @Transactional(readOnly = true)
     public Page<StudentResponse> getAllStudents(Pageable pageable) {
@@ -131,10 +133,22 @@ public class StudentService {
 
     @Transactional
     public void deleteStudent(Long id) {
-        if (!studentRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Student not found with ID: " + id);
+        deleteStudent(id, null);
+    }
+
+    @Transactional
+    public void deleteStudent(Long id, String reason) {
+        Student student = studentRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + id));
+
+        departureHistoryService.recordStudentDeparture(student, reason);
+
+        if (student.getClassrooms() != null) {
+            for (Classroom classroom : student.getClassrooms()) {
+                classroom.getStudents().remove(student);
+            }
         }
-        studentRepository.deleteById(id);
+        studentRepository.delete(student);
     }
 
     public StudentResponse mapToStudentResponse(Student student) {

@@ -47,6 +47,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/admin/students/admin-students.component').then(m => m.AdminStudentsComponent)
   },
   {
+    path: 'admin/history',
+    canActivate: [adminGuard],
+    loadComponent: () => import('./pages/admin/history/admin-history.component').then(m => m.AdminHistoryComponent)
+  },
+  {
     path: '**',
     redirectTo: 'login'
   }
